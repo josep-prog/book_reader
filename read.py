@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Voice Reader — reads any document in a British voice using edge-tts.
+Voice Reader — reads any document in a British or African voice using edge-tts.
 
 Usage:
-    python3 read.py document.pdf              -> document_spoken.mp3
-    python3 read.py document.txt              -> document_spoken.mp3
-    python3 read.py document.pdf out.mp3      -> custom output name
-    python3 read.py document.pdf --voice Ryan -> pick a voice
+    python3 read.py document.pdf                -> document_spoken.mp3
+    python3 read.py document.txt                -> document_spoken.mp3
+    python3 read.py document.pdf out.mp3        -> custom output name
+    python3 read.py document.pdf --voice Ryan   -> pick a voice
+    python3 read.py --list-voices               -> show every voice
+    python3 read.py --verify-voices             -> check IDs against the service
 
 Available British voices:
     --- Male ---
@@ -22,6 +24,19 @@ Available British voices:
     Emma     (British female, gentle)
     Isabella (British female, expressive)
 
+Available African voices (English, native to the region):
+    --- Male ---
+    Chilemba (Kenyan male)
+    Abeo     (Nigerian male)
+    Elimu    (Tanzanian male)
+    Luke     (South African male)
+
+    --- Female ---
+    Asilia   (Kenyan female)
+    Ezinne   (Nigerian female)
+    Imani    (Tanzanian female)
+    Leah     (South African female)
+
 Speed: a full 60,000-word book finishes in ~10-15 minutes.
 """
 
@@ -34,8 +49,8 @@ warnings.filterwarnings("ignore")
 
 DEFAULT_VOICE = "Ryan"
 
-# edge-tts voices (online, Microsoft)
-EDGE_VOICES = {
+# edge-tts British voices (online, Microsoft)
+EDGE_BRITISH_VOICES = {
     "ryan":   "en-GB-RyanNeural",
     "thomas": "en-GB-ThomasNeural",
     "libby":  "en-GB-LibbyNeural",
@@ -43,7 +58,22 @@ EDGE_VOICES = {
     "maisie": "en-GB-MaisieNeural",
 }
 
-# Kokoro voices (offline)
+# edge-tts African English voices (online, Microsoft)
+EDGE_AFRICAN_VOICES = {
+    "chilemba": "en-KE-ChilembaNeural",
+    "asilia":   "en-KE-AsiliaNeural",
+    "abeo":     "en-NG-AbeoNeural",
+    "ezinne":   "en-NG-EzinneNeural",
+    "elimu":    "en-TZ-ElimuNeural",
+    "imani":    "en-TZ-ImaniNeural",
+    "luke":     "en-ZA-LukeNeural",
+    "leah":     "en-ZA-LeahNeural",
+}
+
+EDGE_VOICES = {**EDGE_BRITISH_VOICES, **EDGE_AFRICAN_VOICES}
+
+# Kokoro voices (offline). Kokoro ships no African English voices — the
+# African options above all require a network connection.
 KOKORO_VOICES = {
     "george":   "bm_george",
     "lewis":    "bm_lewis",
@@ -52,6 +82,27 @@ KOKORO_VOICES = {
 }
 
 ALL_VOICES = {**EDGE_VOICES, **KOKORO_VOICES}
+
+# Human-readable description per voice, used by --list-voices
+VOICE_LABELS = {
+    "ryan":     "British male, deep",
+    "thomas":   "British male, warm",
+    "george":   "British male, clear (offline)",
+    "lewis":    "British male, smooth (offline)",
+    "libby":    "British female, bright",
+    "sonia":    "British female, mature",
+    "maisie":   "British female, young",
+    "emma":     "British female, gentle (offline)",
+    "isabella": "British female, expressive (offline)",
+    "chilemba": "Kenyan male",
+    "asilia":   "Kenyan female",
+    "abeo":     "Nigerian male",
+    "ezinne":   "Nigerian female",
+    "elimu":    "Tanzanian male",
+    "imani":    "Tanzanian female",
+    "luke":     "South African male",
+    "leah":     "South African female",
+}
 
 
 def extract_text(path: str) -> str:
@@ -90,12 +141,47 @@ def synthesize_kokoro(text: str, voice_id: str, output_path: str):
     sf.write(output_path, combined, 24000)
 
 
+def list_voices():
+    groups = [
+        ("British", EDGE_BRITISH_VOICES.keys() | KOKORO_VOICES.keys()),
+        ("African", EDGE_AFRICAN_VOICES.keys()),
+    ]
+    for title, keys in groups:
+        print(f"\n{title}")
+        for key in sorted(keys):
+            default = "  <- default" if key == DEFAULT_VOICE.lower() else ""
+            print(f"  {key:<10} {ALL_VOICES[key]:<22} {VOICE_LABELS[key]}{default}")
+    print()
+
+
+async def verify_voices():
+    """Confirm every voice ID we advertise still exists in the service."""
+    import edge_tts
+    available = {v["ShortName"] for v in await edge_tts.list_voices()}
+    missing = {k: v for k, v in EDGE_VOICES.items() if v not in available}
+    for key, voice_id in sorted(EDGE_VOICES.items()):
+        mark = "MISSING" if key in missing else "ok"
+        print(f"  {mark:<8} {key:<10} {voice_id}")
+    if missing:
+        print(f"\n{len(missing)} voice(s) not found in the service.")
+        sys.exit(1)
+    print(f"\nAll {len(EDGE_VOICES)} online voices verified.")
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(0)
 
     args = sys.argv[1:]
+
+    if "--list-voices" in args:
+        list_voices()
+        sys.exit(0)
+
+    if "--verify-voices" in args:
+        asyncio.run(verify_voices())
+        sys.exit(0)
 
     # Parse --voice flag
     voice_name = DEFAULT_VOICE
@@ -119,7 +205,7 @@ def main():
     print(f"Document : {src}")
     text = clean_text(extract_text(src))
     print(f"Words    : {len(text.split())}")
-    print(f"Voice    : {voice_name}")
+    print(f"Voice    : {voice_name} ({VOICE_LABELS[voice_key]})")
     print(f"Output   : {out}\n")
     print("Generating audio... (fast)\n")
 
