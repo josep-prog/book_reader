@@ -1,0 +1,66 @@
+name: Voice Reader
+
+# Run this from the GitHub website:
+#   Actions tab -> "Voice Reader" -> "Run workflow"
+# Pick the document already committed to the repo and the voice you want.
+# When it finishes, open the run and download the MP3 from "Artifacts"
+# (works straight from Safari on an iPhone).
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: "Path to the document in the repo (e.g. book.pdf)"
+        required: true
+        type: string
+      voice:
+        description: "Voice to read in"
+        required: true
+        default: "Asilia"
+        type: choice
+        options:
+          - Asilia      # Kenyan female
+          - Chilemba    # Kenyan male
+          - Ezinne      # Nigerian female
+          - Abeo        # Nigerian male
+          - Imani       # Tanzanian female
+          - Elimu       # Tanzanian male
+          - Leah        # South African female
+          - Luke        # South African male
+          - Ryan        # British male (default in the script)
+          - Libby       # British female
+
+permissions:
+  contents: read
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install edge-tts pypdf
+
+      - name: Confirm the document exists
+        run: |
+          if [ ! -f "${{ inputs.file }}" ]; then
+            echo "::error::File not found in the repo: ${{ inputs.file }}"
+            exit 1
+          fi
+
+      - name: Generate the audio
+        run: python3 read.py "${{ inputs.file }}" output.mp3 --voice "${{ inputs.voice }}"
+
+      - name: Upload the MP3
+        uses: actions/upload-artifact@v4
+        with:
+          name: audiobook-${{ inputs.voice }}
+          path: output.mp3
+          if-no-files-found: error
