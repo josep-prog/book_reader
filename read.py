@@ -8,6 +8,8 @@ Usage:
     python3 read.py document.pdf out.mp3        -> custom output name
     python3 read.py document.pdf --voice Ryan   -> pick a voice
     python3 read.py --list-voices               -> show every voice
+    python3 read.py --samples                   -> sample clips of the African voices
+    python3 read.py --samples all               -> sample clips of every voice
     python3 read.py --verify-voices             -> check IDs against the service
 
 Available British voices:
@@ -168,6 +170,44 @@ async def verify_voices():
     print(f"\nAll {len(EDGE_VOICES)} online voices verified.")
 
 
+SAMPLE_TEXT = (
+    "Chapter one. The morning sun rose over the hills, and the whole village "
+    "gathered to hear the story that had been passed down for generations."
+)
+
+
+def sample_voices(group: str, text: str, out_dir: str = "samples"):
+    """Render the same passage in each voice so they can be compared."""
+    if group == "african":
+        chosen = dict(EDGE_AFRICAN_VOICES)
+    elif group == "british":
+        chosen = {**EDGE_BRITISH_VOICES, **KOKORO_VOICES}
+    else:
+        chosen = dict(ALL_VOICES)
+
+    os.makedirs(out_dir, exist_ok=True)
+    print(f"Rendering {len(chosen)} samples into {out_dir}/\n")
+
+    failed = []
+    for key in sorted(chosen):
+        out = os.path.join(out_dir, f"{key}.mp3")
+        print(f"  {key:<10} {VOICE_LABELS[key]:<28} ", end="", flush=True)
+        try:
+            if key in EDGE_VOICES:
+                asyncio.run(synthesize_edge(text, ALL_VOICES[key], out))
+            else:
+                synthesize_kokoro(text, ALL_VOICES[key], out)
+            print("ok")
+        except Exception as exc:
+            failed.append(key)
+            print(f"failed ({type(exc).__name__})")
+
+    print(f"\nDone. {len(chosen) - len(failed)}/{len(chosen)} rendered.")
+    if failed:
+        print(f"Failed: {', '.join(failed)}")
+    print(f"Listen, then re-run with --voice <name> on your document.")
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -177,6 +217,16 @@ def main():
 
     if "--list-voices" in args:
         list_voices()
+        sys.exit(0)
+
+    if "--samples" in args:
+        idx = args.index("--samples")
+        rest = args[idx + 1:]
+        group = rest[0].lower() if rest and not rest[0].startswith("-") else "african"
+        if group not in ("african", "british", "all"):
+            print(f"Unknown group '{group}'. Use: african, british, all")
+            sys.exit(1)
+        sample_voices(group, SAMPLE_TEXT)
         sys.exit(0)
 
     if "--verify-voices" in args:
