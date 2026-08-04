@@ -7,15 +7,27 @@ Usage:
     python3 read.py document.txt              -> document_spoken.mp3
     python3 read.py document.pdf out.mp3      -> custom output name
     python3 read.py document.pdf --voice Ryan -> pick a voice
+    python3 read.py document.pdf --voice Lina -> African (South African) female
 
-Available British voices:
-    --- Male ---
+Available voices:
+    --- African English (female) ---
+    Lina     (South African female)      <- African default
+    Asilia   (Kenyan female)
+    Ezinne   (Nigerian female)
+    Imani    (Tanzanian female)
+
+    --- African English (male) ---
+    Luke     (South African male)
+    Chilemba (Kenyan male)
+    Abeo     (Nigerian male)
+
+    --- British male ---
     Ryan     (British male, deep)        <- default
     Thomas   (British male, warm)
     George   (British male, clear)
     Lewis    (British male, smooth)
 
-    --- Female ---
+    --- British female ---
     Libby    (British female, bright)
     Sonia    (British female, mature)
     Maisie   (British female, young)
@@ -36,6 +48,15 @@ DEFAULT_VOICE = "Ryan"
 
 # edge-tts voices (online, Microsoft)
 EDGE_VOICES = {
+    # African English
+    "lina":     "en-ZA-LeahNeural",      # South African female
+    "asilia":   "en-KE-AsiliaNeural",    # Kenyan female
+    "ezinne":   "en-NG-EzinneNeural",    # Nigerian female
+    "imani":    "en-TZ-ImaniNeural",     # Tanzanian female
+    "luke":     "en-ZA-LukeNeural",      # South African male
+    "chilemba": "en-KE-ChilembaNeural",  # Kenyan male
+    "abeo":     "en-NG-AbeoNeural",      # Nigerian male
+    # British English
     "ryan":   "en-GB-RyanNeural",
     "thomas": "en-GB-ThomasNeural",
     "libby":  "en-GB-LibbyNeural",
